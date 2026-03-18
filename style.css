@@ -1,0 +1,12 @@
+.screenshots-carousel {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+.screenshots-carousel img {
+  width: 100px;
+  height: 180px;
+  border-radius: 10px;
+  object-fit: cover;
+}
