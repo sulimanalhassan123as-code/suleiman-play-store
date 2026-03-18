@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#20B2AA">
+<title>Suleiman Play Store</title>
+<link rel="stylesheet" href="css/style.css">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/suleiman-logo.svg" type="image/svg+xml">
+</head>
+<body>
+
+<header class="site-header">
+  <div class="brand">
+    <img src="icons/suleiman-logo.svg" alt="Logo" class="logo">
+    <div class="brand-text">
+      <h1>Suleiman Play Store</h1>
+      <p class="tag">All apps — one place.</p>
+    </div>
+  </div>
+  <input id="search" placeholder="Search apps (e.g. Dhikr, Islamic...)" />
+</header>
+
+<div id="theme-switcher">
+  <label for="theme-select">🎨 Choose Theme:</label>
+  <select id="theme-select">
+    <option value="light">Light</option>
+    <option value="dark">Dark</option>
+    <option value="green">Islamic Green</option>
+  </select>
+</div>
+
+<main id="apps-container" class="apps-container"></main>
+
+<footer>
+  <p>© 2026 Suleiman Alhassan — Powered by Suleiman Alhassan</p>
+</footer>
+
+<script src="js/main.js"></script>
+<script>
+  const themeSelect = document.getElementById('theme-select');
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  document.body.setAttribute('data-theme', savedTheme);
+  themeSelect.value = savedTheme;
+
+  themeSelect.addEventListener('change', (e) => {
+    const newTheme = e.target.value;
+    document.body.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+  });
+</script>
+
+</body>
+</html>
