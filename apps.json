@@ -1,0 +1,24 @@
+[
+  {
+    "id": "islamic-google",
+    "title": "Islamic Google 🔎",
+    "desc": "Islamic knowledge search engine",
+    "icon": "icons/app1-icon.png",
+    "url": "https://islamic-google-final.vercel.app",
+    "screenshots": [
+      "screenshots/islamic-google-1.png",
+      "screenshots/islamic-google-2.png"
+    ]
+  },
+  {
+    "id": "dhikr-counter",
+    "title": "Dhikr Counter",
+    "desc": "Powerful Dhikr counter",
+    "icon": "icons/app2-icon.png",
+    "url": "https://your-dhikr-counter-link",
+    "screenshots": [
+      "screenshots/dhikr-counter-1.png",
+      "screenshots/dhikr-counter-2.png"
+    ]
+  }
+]
