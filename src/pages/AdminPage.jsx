@@ -3,7 +3,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
 import { supabaseAdmin, isSupabaseReady } from '../lib/supabase';
 
-const ADMIN_PASSWORD = "neverhide2024";
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || "neverhide2024";
 
 export default function AdminPage() {
   const { theme } = useTheme();
