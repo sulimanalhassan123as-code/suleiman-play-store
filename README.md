@@ -7,13 +7,13 @@ A Google Play Store-inspired PWA built with React + Vite.
 - 🃏 3D rotating app cards with flip animation  
 - 📱 Mobile-first Android-friendly design
 - 🔐 Supabase authentication (Sign In / Register)
-- 👑 Admin portal at `/admin`
+- 👑 Admin portal (owner access only)
 - 💬 Community section with Clock AI
 - 📢 Live announcements system
 - 🏪 Dynamic app management via Supabase
 
 ## Live Site
-👉 https://suleiman-store-ten.vercel.app
+👉 https://suleiman-play-store.vercel.app
 
 ## Setup
 ```bash
@@ -31,6 +31,6 @@ VITE_GROQ_API_KEY=your_groq_key
 
 ## Admin Portal
 - URL: `/admin`
-- Password: `neverhide2024`
+- Access: Owner only — credentials are private
 
 Built by **Never Hide Tech Empire** 🚀
