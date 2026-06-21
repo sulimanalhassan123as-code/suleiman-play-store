@@ -14,7 +14,7 @@ export async function askGroq(prompt, systemPrompt = '') {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'llama3-8b-8192',
+        model: 'llama-3.1-8b-instant',
         messages: [
           { role: 'system', content: systemPrompt || 'You are Clock AI, a helpful Islamic knowledge assistant for the Suleiman Play Store community. Answer questions about Islam, apps, and technology. Keep answers concise and respectful. Always say JazakAllah or relevant Islamic greeting.' },
           { role: 'user', content: prompt }
