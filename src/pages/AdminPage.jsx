@@ -43,29 +43,44 @@ export default function AdminPage() {
     if (!isSupabaseReady || !supabaseAdmin) return;
     setLoading(true);
     try {
-      const [appsRes, usersRes, annoRes, postsRes] = await Promise.all([
+      // Fetch apps, announcements, posts in parallel
+      const [appsRes, annoRes, postsRes] = await Promise.all([
         supabaseAdmin.from('apps').select('*').order('created_at', { ascending: false }),
-        supabaseAdmin.from('profiles').select('*').order('created_at', { ascending: false }),
         supabaseAdmin.from('announcements').select('*').order('created_at', { ascending: false }),
         supabaseAdmin.from('community_posts').select('*').order('created_at', { ascending: false }).limit(50),
       ]);
 
-      if (appsRes.data) setApps(appsRes.data);
-      if (usersRes.data) {
-        setUsers(usersRes.data);
-        const today = new Date().toDateString();
-        const activeToday = usersRes.data.filter(u =>
-          u.last_seen && new Date(u.last_seen).toDateString() === today
-        ).length;
-        setStats({
-          totalUsers: usersRes.data.length,
-          activeToday,
-          totalApps: appsRes.data?.length || 0,
-          totalPosts: postsRes.data?.length || 0
-        });
-      }
+      const appsData = appsRes.data || [];
+      const postsData = postsRes.data || [];
+
+      if (appsData.length > 0) setApps(appsData);
       if (annoRes.data) setAnnouncements(annoRes.data);
-      if (postsRes.data) setPosts(postsRes.data);
+      if (postsData.length > 0) setPosts(postsData);
+
+      // Fetch auth users via admin API
+      let authUsers = [];
+      try {
+        const { data: usersData, error: usersErr } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 100 });
+        if (!usersErr && usersData?.users) {
+          authUsers = usersData.users;
+          setUsers(authUsers);
+        }
+      } catch (e) {
+        console.warn('Could not load auth users:', e);
+      }
+
+      const today = new Date().toDateString();
+      const activeToday = authUsers.filter(u =>
+        u.last_sign_in_at && new Date(u.last_sign_in_at).toDateString() === today
+      ).length;
+
+      setStats({
+        totalUsers: authUsers.length,
+        activeToday,
+        totalApps: appsData.length,
+        totalPosts: postsData.length
+      });
+
     } catch (e) {
       console.error('Load error:', e);
     }
@@ -239,11 +254,11 @@ export default function AdminPage() {
                 <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: `1px solid ${theme.accent}11` }}>
                   <span style={{ fontSize: 20 }}>👤</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ color: theme.text, fontSize: 13, fontWeight: 600 }}>{u.full_name || 'Unknown'}</div>
+                    <div style={{ color: theme.text, fontSize: 13, fontWeight: 600 }}>{u.user_metadata?.full_name || u.email?.split('@')[0] || 'User'}</div>
                     <div style={{ color: theme.subtext, fontSize: 11 }}>{u.email}</div>
                   </div>
-                  <div style={{ fontSize: 10, color: u.last_seen && new Date(u.last_seen).toDateString() === new Date().toDateString() ? '#27ae60' : theme.subtext }}>
-                    {u.last_seen && new Date(u.last_seen).toDateString() === new Date().toDateString() ? '🟢 Today' : '⚪ Offline'}
+                  <div style={{ fontSize: 10, color: u.last_sign_in_at && new Date(u.last_sign_in_at).toDateString() === new Date().toDateString() ? '#27ae60' : theme.subtext }}>
+                    {u.last_sign_in_at && new Date(u.last_sign_in_at).toDateString() === new Date().toDateString() ? '🟢 Today' : '⚪ Offline'}
                   </div>
                 </div>
               ))}
