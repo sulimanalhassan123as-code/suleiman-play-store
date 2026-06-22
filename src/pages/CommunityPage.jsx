@@ -29,8 +29,6 @@ export default function CommunityPage() {
     };
     setPosts(prev => [post, ...prev]);
     const q = newQ; setNewQ('');
-
-    // Groq AI answers after 8 seconds
     setAiTyping(post.id);
     setTimeout(async () => {
       const aiReply = await askGroq(q);
@@ -40,7 +38,6 @@ export default function CommunityPage() {
       } : p));
       setAiTyping(null);
     }, 8000);
-
     if (isSupabaseReady) {
       await supabase.from('community_posts').insert({ user_id: user?.id, user_name: post.user_name, question: q });
     }
@@ -67,59 +64,194 @@ export default function CommunityPage() {
   };
 
   return (
-    <div className="community-page">
-      <div className="community-header" style={{ color: theme.text }}>
-        <h2>💬 Community</h2>
-        <p style={{ color: theme.subtext }}>Ask questions · Share knowledge · Help each other</p>
+    <div style={{ padding: '0 0 8px' }}>
+      {/* Header */}
+      <div style={{ padding: '18px 16px 12px' }}>
+        <h2 style={{ color: theme.text, fontSize: 22, fontWeight: 800, margin: 0 }}>💬 Community</h2>
+        <p style={{ color: theme.subtext, fontSize: 13, margin: '4px 0 0' }}>Ask questions · Share knowledge · Help each other</p>
       </div>
 
-      <div className="ask-box" style={{ background: theme.cardBg, border: `1px solid ${theme.accent}33` }}>
-        <div className="ask-header" style={{ color: theme.text }}>❓ Ask the Community</div>
-        <textarea className="ask-input"
-          style={{ background: theme.searchBg, color: theme.text, border: `1px solid ${theme.accent}33` }}
-          placeholder="Post your question... Clock AI (Groq) will answer in 8 seconds 🤖"
-          value={newQ} onChange={e => setNewQ(e.target.value)} rows={3} />
-        <button className="ask-btn" style={{ background: theme.accent }} onClick={submitQuestion} disabled={!newQ.trim()}>
-          Post Question 🚀
+      {/* Ask Box — clean modern card */}
+      <div style={{
+        margin: '0 14px 16px',
+        background: theme.cardBg,
+        borderRadius: 18,
+        padding: '14px',
+        boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
+        border: `1px solid ${theme.accent}22`
+      }}>
+        <div style={{ color: theme.text, fontWeight: 700, fontSize: 14, marginBottom: 10 }}>❓ Ask the Community</div>
+
+        {/* Clean text input — NOT a textarea */}
+        <div style={{
+          background: theme.searchBg,
+          borderRadius: 12,
+          padding: '12px 14px',
+          marginBottom: 10,
+          border: `1px solid ${theme.accent}33`,
+          minHeight: 80,
+          display: 'flex',
+          alignItems: 'flex-start'
+        }}>
+          <input
+            style={{
+              width: '100%',
+              border: 'none',
+              outline: 'none',
+              background: 'transparent',
+              color: theme.text,
+              fontSize: 14,
+              fontFamily: 'inherit',
+              resize: 'none',
+              lineHeight: 1.5
+            }}
+            placeholder="Post your question... 🤖 Clock AI will answer in 8 seconds"
+            value={newQ}
+            onChange={e => setNewQ(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && submitQuestion()}
+          />
+        </div>
+
+        <button
+          onClick={submitQuestion}
+          disabled={!newQ.trim()}
+          style={{
+            width: '100%',
+            background: newQ.trim() ? theme.accent : `${theme.accent}55`,
+            color: '#fff',
+            border: 'none',
+            borderRadius: 12,
+            padding: '12px',
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: newQ.trim() ? 'pointer' : 'default',
+            transition: 'all 0.2s',
+            fontFamily: 'inherit'
+          }}
+        >
+          🚀 Post Question
         </button>
       </div>
 
-      <div className="posts-list">
+      {/* Posts List */}
+      <div style={{ padding: '0 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
         {posts.map(post => (
-          <div key={post.id} className="post-card" style={{ background: theme.cardBg, border: `1px solid ${theme.accent}22` }}>
-            <div className="post-user">
-              <span className="post-avatar">{post.avatar}</span>
-              <div>
-                <span className="post-username" style={{ color: theme.text }}>{post.user_name}</span>
-                <span className="post-time" style={{ color: theme.subtext }}> · {timeAgo(post.created_at)}</span>
+          <div key={post.id} style={{
+            background: theme.cardBg,
+            borderRadius: 18,
+            padding: '14px',
+            boxShadow: '0 2px 10px rgba(0,0,0,0.07)',
+            border: `1px solid ${theme.accent}18`
+          }}>
+            {/* Post header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <span style={{ fontSize: 22, lineHeight: 1 }}>{post.avatar}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  <span style={{ color: theme.text, fontWeight: 700, fontSize: 14 }}>{post.user_name}</span>
+                  <span style={{ color: theme.subtext, fontSize: 11 }}>· {timeAgo(post.created_at)}</span>
+                  {post.answers?.length > 0 && (
+                    <span style={{
+                      background: '#22c55e22',
+                      color: '#22c55e',
+                      borderRadius: 8,
+                      padding: '2px 8px',
+                      fontSize: 11,
+                      fontWeight: 600
+                    }}>✓ Answered</span>
+                  )}
+                </div>
               </div>
-              {post.answers?.length > 0 && <span className="answered-badge">✓ Answered</span>}
             </div>
-            <p className="post-question" style={{ color: theme.text }}>{post.question}</p>
 
+            {/* Question */}
+            <p style={{ color: theme.text, fontSize: 15, lineHeight: 1.5, margin: '0 0 12px' }}>{post.question}</p>
+
+            {/* AI typing indicator */}
             {aiTyping === post.id && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: theme.accent + '22', borderRadius: 10, margin: '8px 0', border: `1px solid ${theme.accent}66` }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 12px',
+                background: `${theme.accent}18`,
+                borderRadius: 10,
+                marginBottom: 10,
+                border: `1px solid ${theme.accent}44`
+              }}>
                 <span>🤖</span>
                 <span style={{ color: theme.accent, fontSize: 13 }}>Clock AI is typing...</span>
-                <span style={{ animation: 'pulse 1s infinite', color: theme.accent }}>●●●</span>
               </div>
             )}
 
-            <div className="post-actions">
-              <button className="action-btn" style={{ color: theme.subtext }} onClick={() => likePost(post.id)}>❤️ {post.likes}</button>
-              <button className="action-btn" style={{ color: theme.subtext }}>💬 {post.answers?.length || 0}</button>
-              <button className="action-btn reply-btn" style={{ color: theme.accent }} onClick={() => setActiveReply(activeReply === post.id ? null : post.id)}>↩ Reply</button>
+            {/* Action pills — inline, no boxes */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => likePost(post.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: `${theme.accent}15`,
+                  color: theme.text,
+                  border: 'none',
+                  borderRadius: 20,
+                  padding: '6px 14px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit'
+                }}
+              >
+                ❤️ {post.likes}
+              </button>
+
+              <button style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                background: `${theme.accent}15`,
+                color: theme.text,
+                border: 'none',
+                borderRadius: 20,
+                padding: '6px 14px',
+                fontSize: 13,
+                fontWeight: 600,
+                cursor: 'default',
+                fontFamily: 'inherit'
+              }}>
+                💬 {post.answers?.length || 0}
+              </button>
+
+              <button
+                onClick={() => setActiveReply(activeReply === post.id ? null : post.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  background: activeReply === post.id ? theme.accent : `${theme.accent}15`,
+                  color: activeReply === post.id ? '#fff' : theme.accent,
+                  border: 'none',
+                  borderRadius: 20,
+                  padding: '6px 14px',
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  transition: 'all 0.2s'
+                }}
+              >
+                ↩ Reply
+              </button>
             </div>
 
+            {/* Answers */}
             {post.answers?.length > 0 && (
-              <div className="answers-list">
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {post.answers.map(ans => (
-                  <div key={ans.id} className={`answer-item ${ans.isAI ? 'ai-answer' : ''}`}
-                    style={{ background: ans.isAI ? theme.accent + '22' : theme.searchBg, border: ans.isAI ? `1px solid ${theme.accent}` : 'none' }}>
-                    <span className="post-avatar" style={{ fontSize: 16 }}>{ans.avatar}</span>
-                    <div>
-                      <span className="post-username" style={{ color: theme.text, fontSize: 13 }}>{ans.user_name}</span>
-                      <p className="answer-text" style={{ color: theme.text }}>{ans.text}</p>
+                  <div key={ans.id} style={{
+                    display: 'flex', gap: 10,
+                    background: ans.isAI ? `${theme.accent}18` : theme.searchBg,
+                    borderRadius: 12,
+                    padding: '10px 12px',
+                    border: ans.isAI ? `1px solid ${theme.accent}55` : 'none'
+                  }}>
+                    <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{ans.avatar}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ color: theme.text, fontWeight: 700, fontSize: 13 }}>{ans.user_name}</span>
+                      <p style={{ color: theme.text, fontSize: 13, lineHeight: 1.5, margin: '3px 0 4px' }}>{ans.text}</p>
                       <span style={{ color: theme.subtext, fontSize: 11 }}>{timeAgo(ans.created_at)}</span>
                     </div>
                   </div>
@@ -127,15 +259,41 @@ export default function CommunityPage() {
               </div>
             )}
 
+            {/* Reply input */}
             {activeReply === post.id && (
-              <div className="reply-box">
-                <input className="reply-input"
-                  style={{ background: theme.searchBg, color: theme.text, border: `1px solid ${theme.accent}55` }}
+              <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+                <input
+                  style={{
+                    flex: 1,
+                    background: theme.searchBg,
+                    color: theme.text,
+                    border: `1px solid ${theme.accent}44`,
+                    borderRadius: 12,
+                    padding: '10px 14px',
+                    fontSize: 14,
+                    outline: 'none',
+                    fontFamily: 'inherit'
+                  }}
                   placeholder="Write your answer..."
                   value={newAnswer[post.id] || ''}
                   onChange={e => setNewAnswer(prev => ({ ...prev, [post.id]: e.target.value }))}
-                  onKeyDown={e => e.key === 'Enter' && submitAnswer(post.id)} />
-                <button className="reply-send-btn" style={{ background: theme.accent }} onClick={() => submitAnswer(post.id)}>Send</button>
+                  onKeyDown={e => e.key === 'Enter' && submitAnswer(post.id)}
+                />
+                <button
+                  onClick={() => submitAnswer(post.id)}
+                  style={{
+                    background: theme.accent,
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: '10px 16px',
+                    fontSize: 14,
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    fontFamily: 'inherit'
+                  }}
+                >Send</button>
               </div>
             )}
           </div>
