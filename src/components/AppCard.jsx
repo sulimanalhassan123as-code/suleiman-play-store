@@ -10,7 +10,7 @@ export default function AppCard({ app }) {
   const [installing, setInstalling] = useState(false);
   const [progress, setProgress] = useState(0);
   const navigate = useNavigate();
-  const isInstalled = installedApps.includes(app.id);
+  const isInstalled = installedApps.some(id => String(id) === String(app.id));
 
   const handleInstall = (e) => {
     e.stopPropagation();

@@ -19,16 +19,18 @@ export default function AppDetailPage() {
   const [newReview, setNewReview] = useState('');
   const [reviews, setReviews] = useState(REVIEWS);
 
-  const app = apps.find(a => a.id === parseInt(id));
+  // Support both UUID (from Supabase) and numeric (from fallback) IDs
+  const app = apps.find(a => String(a.id) === String(id));
   const isInstalled = installedApps.includes(app?.id);
 
   if (!app) return (
-    <div style={{ padding: 24, color: theme.text, textAlign: 'center' }}>
-      <div style={{ fontSize: 48 }}>😕</div>
-      <p>App not found</p>
-      <button onClick={() => navigate('/')} style={{ background: theme.accent, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px' }}>
-        ← Go Back
-      </button>
+    <div style={{ padding: 40, color: theme.text, textAlign: 'center' }}>
+      <div style={{ fontSize: 48, marginBottom: 12 }}>😕</div>
+      <p style={{ marginBottom: 16 }}>App not found</p>
+      <button onClick={() => navigate('/')} style={{
+        background: theme.accent, color: '#fff', border: 'none',
+        borderRadius: 10, padding: '10px 20px', fontSize: 14, cursor: 'pointer'
+      }}>← Go Back</button>
     </div>
   );
 
@@ -46,6 +48,12 @@ export default function AppDetailPage() {
     }, 200);
   };
 
+  const handleOpen = () => {
+    if (app.url && app.url !== '#') {
+      window.open(app.url, '_blank', 'noopener');
+    }
+  };
+
   const submitReview = () => {
     if (!newReview.trim()) return;
     setReviews(prev => [{ user: "You", avatar: "😊", rating: 5, text: newReview, time: "Just now" }, ...prev]);
@@ -53,99 +61,132 @@ export default function AppDetailPage() {
   };
 
   return (
-    <div className="app-detail-page" style={{ background: 'transparent' }}>
-      <button className="back-btn" onClick={() => navigate(-1)} style={{ color: theme.accent }}>
-        ← Back
-      </button>
+    <div style={{ paddingBottom: 20 }}>
+      {/* Back button */}
+      <button onClick={() => navigate(-1)} style={{
+        background: 'none', border: 'none', color: theme.accent, fontSize: 15,
+        fontWeight: 600, cursor: 'pointer', padding: '14px 16px', display: 'flex',
+        alignItems: 'center', gap: 4, minHeight: 44
+      }}>← Back</button>
 
-      {/* Hero */}
-      <div className="detail-hero" style={{ background: app.color }}>
-        <div className="detail-icon">{app.emoji}</div>
-        <div className="detail-hero-info">
-          <h1 className="detail-name">{app.name}</h1>
-          <p className="detail-category">Never Hide Tech Empire</p>
-          <div className="detail-stats">
-            <span>★ {app.rating}</span>
-            <span>·</span>
-            <span>{app.downloads} downloads</span>
-            <span>·</span>
-            <span>{app.category}</span>
-          </div>
+      {/* Hero Banner */}
+      <div style={{
+        background: app.color, padding: '20px 16px 24px', display: 'flex',
+        flexDirection: 'column', alignItems: 'center', textAlign: 'center'
+      }}>
+        <div style={{
+          width: 90, height: 90, borderRadius: 22,
+          background: 'rgba(255,255,255,0.2)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center',
+          fontSize: 44, marginBottom: 14
+        }}>{app.emoji}</div>
+        <h1 style={{ color: '#fff', fontSize: 22, fontWeight: 700, marginBottom: 6, lineHeight: 1.2 }}>{app.name}</h1>
+        <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginBottom: 6 }}>Never Hide Tech Empire</p>
+        <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: 12, display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
+          <span>★ {app.rating}</span>
+          <span>·</span>
+          <span>{app.downloads} downloads</span>
+          <span>·</span>
+          <span>{app.category}</span>
         </div>
       </div>
 
-      <div className="detail-body" style={{ background: theme.cardBg }}>
-        {/* Install button */}
+      {/* Body */}
+      <div style={{ background: theme.cardBg, margin: '0 12px', borderRadius: '0 0 16px 16px', padding: '16px 14px' }}>
+        {/* Actions */}
         {installing ? (
-          <div className="detail-install-progress">
-            <div className="big-progress-bar">
-              <div className="big-progress-fill" style={{ width: `${progress}%`, background: app.color }} />
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ height: 8, background: 'rgba(0,0,0,0.1)', borderRadius: 4, overflow: 'hidden', marginBottom: 6 }}>
+              <div style={{ height: '100%', width: `${progress}%`, background: app.color, borderRadius: 4, transition: 'width 0.2s' }} />
             </div>
-            <p style={{ color: theme.text }}>Installing... {Math.round(progress)}%</p>
+            <p style={{ color: theme.subtext, fontSize: 12, textAlign: 'center' }}>Installing... {Math.round(progress)}%</p>
           </div>
         ) : (
-          <div className="detail-actions-row">
-            <button
-              className="detail-install-btn"
-              style={{ background: isInstalled ? '#888' : app.color }}
-              onClick={handleInstall}
-            >
-              {isInstalled ? '✓ Installed — Uninstall' : '⬇️ Install'}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+            <button onClick={handleInstall} style={{
+              flex: 1, background: isInstalled ? '#888' : app.color, color: '#fff',
+              border: 'none', borderRadius: 12, padding: '12px', fontSize: 14,
+              fontWeight: 700, cursor: 'pointer', minHeight: 46
+            }}>
+              {isInstalled ? '✓ Uninstall' : '⬇️ Install'}
             </button>
-            <button className="detail-share-btn" style={{ borderColor: app.color, color: app.color }}
-              onClick={() => navigator.share?.({ title: app.name, text: app.description, url: window.location.href })}>
-              📤
-            </button>
-            <button className="detail-share-btn" style={{ borderColor: app.color, color: app.color }}>
-              ❤️
-            </button>
+            {app.url && app.url !== '#' && (
+              <button onClick={handleOpen} style={{
+                flex: 1, background: 'transparent', color: app.color,
+                border: `2px solid ${app.color}`, borderRadius: 12,
+                padding: '12px', fontSize: 14, fontWeight: 700,
+                cursor: 'pointer', minHeight: 46
+              }}>🔗 Open App</button>
+            )}
+            <button onClick={() => navigator.share?.({ title: app.name, text: app.description, url: app.url || window.location.href })}
+              style={{
+                background: 'transparent', border: `2px solid ${theme.accent}44`,
+                borderRadius: 12, padding: '12px', fontSize: 18, cursor: 'pointer',
+                minHeight: 46, minWidth: 46
+              }}>📤</button>
           </div>
         )}
 
         {/* About */}
-        <section className="detail-section">
-          <h3 style={{ color: theme.text }}>About this app</h3>
-          <p style={{ color: theme.subtext }}>{app.fullDescription}</p>
-        </section>
+        <div style={{ marginBottom: 18 }}>
+          <h3 style={{ color: theme.text, fontSize: 15, fontWeight: 700, marginBottom: 8 }}>About this app</h3>
+          <p style={{ color: theme.subtext, fontSize: 14, lineHeight: 1.6 }}>
+            {app.fullDescription || app.description}
+          </p>
+        </div>
 
         {/* Features */}
-        <section className="detail-section">
-          <h3 style={{ color: theme.text }}>Features</h3>
-          <div className="features-grid">
-            {app.features?.map((f, i) => (
-              <div key={i} className="feature-item" style={{ background: app.color + '22', color: app.color }}>
-                ✓ {f}
-              </div>
-            ))}
+        {app.features && app.features.length > 0 && (
+          <div style={{ marginBottom: 18 }}>
+            <h3 style={{ color: theme.text, fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Features</h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {app.features.map((f, i) => (
+                <span key={i} style={{
+                  background: app.color + '22', color: app.color,
+                  borderRadius: 10, padding: '5px 10px', fontSize: 12, fontWeight: 600
+                }}>✓ {f}</span>
+              ))}
+            </div>
           </div>
-        </section>
+        )}
 
         {/* Reviews */}
-        <section className="detail-section">
-          <h3 style={{ color: theme.text }}>Reviews</h3>
-          <div className="review-input-wrap">
+        <div>
+          <h3 style={{ color: theme.text, fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Reviews</h3>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
             <input
-              className="review-input"
-              style={{ background: theme.searchBg, color: theme.text, border: `1px solid ${theme.accent}44` }}
+              style={{
+                flex: 1, background: theme.searchBg, color: theme.text,
+                border: `1px solid ${theme.accent}44`, borderRadius: 10,
+                padding: '10px 12px', fontSize: 14, outline: 'none',
+                fontFamily: 'inherit', minHeight: 42
+              }}
               placeholder="Write a review..."
               value={newReview}
               onChange={e => setNewReview(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && submitReview()}
             />
-            <button style={{ background: app.color, color: '#fff', border: 'none', borderRadius: 8, padding: '8px 12px' }} onClick={submitReview}>Post</button>
+            <button onClick={submitReview} style={{
+              background: app.color, color: '#fff', border: 'none',
+              borderRadius: 10, padding: '10px 14px', fontWeight: 700,
+              cursor: 'pointer', fontSize: 13, minHeight: 42
+            }}>Post</button>
           </div>
           {reviews.map((r, i) => (
-            <div key={i} className="review-item" style={{ borderBottom: `1px solid ${theme.accent}22` }}>
-              <div className="review-header">
-                <span>{r.avatar}</span>
-                <span style={{ color: theme.text, fontWeight: 600 }}>{r.user}</span>
-                <span style={{ color: '#f4c430' }}>{'★'.repeat(r.rating)}</span>
-                <span style={{ color: theme.subtext, fontSize: 12 }}>{r.time}</span>
+            <div key={i} style={{
+              borderBottom: `1px solid ${theme.accent}22`,
+              paddingBottom: 12, marginBottom: 12
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                <span style={{ fontSize: 20 }}>{r.avatar}</span>
+                <span style={{ color: theme.text, fontWeight: 600, fontSize: 13 }}>{r.user}</span>
+                <span style={{ color: '#f4c430', fontSize: 12 }}>{'★'.repeat(r.rating)}</span>
+                <span style={{ color: theme.subtext, fontSize: 11, marginLeft: 'auto' }}>{r.time}</span>
               </div>
-              <p style={{ color: theme.subtext, margin: '4px 0 0 28px', fontSize: 14 }}>{r.text}</p>
+              <p style={{ color: theme.subtext, fontSize: 13, lineHeight: 1.5, marginLeft: 30 }}>{r.text}</p>
             </div>
           ))}
-        </section>
+        </div>
       </div>
     </div>
   );
