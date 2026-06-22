@@ -12,7 +12,9 @@ export const supabase = isSupabaseReady
 
 // Admin client with service role (bypasses RLS — admin portal only)
 export const supabaseAdmin = (isSupabaseReady && serviceRoleKey)
-  ? createClient(supabaseUrl, serviceRoleKey)
+  ? createClient(supabaseUrl, serviceRoleKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
   : supabase
 
 export default supabase

@@ -9,6 +9,7 @@ export default function BottomNav() {
   const tabs = [
     { path: '/', icon: '🏪', label: 'Store' },
     { path: '/community', icon: '💬', label: 'Community' },
+    { path: '/publish', icon: '🚀', label: 'Publish' },
     { path: '/profile', icon: '👤', label: 'Profile' }
   ];
 
@@ -17,12 +18,9 @@ export default function BottomNav() {
       {tabs.map(tab => {
         const active = location.pathname === tab.path;
         return (
-          <button
-            key={tab.path}
-            className={`nav-tab ${active ? 'nav-tab-active' : ''}`}
+          <button key={tab.path} className={`nav-tab ${active ? 'nav-tab-active' : ''}`}
             onClick={() => navigate(tab.path)}
-            style={{ color: active ? theme.accent : theme.subtext }}
-          >
+            style={{ color: active ? theme.accent : theme.subtext }}>
             <span className="nav-icon">{tab.icon}</span>
             <span className="nav-label" style={{ color: active ? theme.accent : theme.subtext }}>{tab.label}</span>
             {active && <div className="nav-indicator" style={{ background: theme.accent }} />}

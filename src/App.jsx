@@ -12,6 +12,7 @@ import ProfilePage from './pages/ProfilePage';
 import AppDetailPage from './pages/AppDetailPage';
 import AdminPage from './pages/AdminPage';
 import AuthPage from './pages/AuthPage';
+import PublishPage from './pages/PublishPage';
 import './App.css';
 
 function Layout() {
@@ -28,6 +29,7 @@ function Layout() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/app/:id" element={<AppDetailPage />} />
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/publish" element={<PublishPage />} />
           </Routes>
         </main>
         <BottomNav />
