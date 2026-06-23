@@ -96,7 +96,7 @@ export default function PublishPage() {
             ))}
           </div>
           <p style={{ color: theme.subtext, fontSize: 12, marginTop: 10, lineHeight: 1.5 }}>
-            💳 Pay via <b style={{ color: theme.text }}>MoMo · MTN: 0XXXXXXXXX</b> or any method. Include your app name as reference.
+            💳 Pay via <b style={{ color: theme.text }}>MoMo · MTN: 0599931348</b> or any method. Include your app name as reference.
           </p>
         </div>
 
