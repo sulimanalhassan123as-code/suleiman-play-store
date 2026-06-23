@@ -90,7 +90,17 @@ export default function AdminPage() {
       let authUsers = [];
       try {
         const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
-        if (usersData?.users) { authUsers = usersData.users; setUsers(authUsers); }
+        if (usersData?.users) {
+          authUsers = usersData.users;
+          // Merge phone numbers from profiles table
+          const { data: profiles } = await supabaseAdmin.from('profiles').select('id, phone, banned, is_publisher');
+          if (profiles) {
+            const profileMap = {};
+            profiles.forEach(p => { profileMap[p.id] = p; });
+            authUsers = authUsers.map(u => ({ ...u, phone: profileMap[u.id]?.phone || null, banned: profileMap[u.id]?.banned || false, is_publisher: profileMap[u.id]?.is_publisher || false }));
+          }
+          setUsers(authUsers);
+        }
       } catch (e) { console.warn('Could not load auth users:', e); }
       const { count: installCount } = await supabaseAdmin.from('app_installs').select('*', { count: 'exact', head: true });
       setStats({
@@ -458,6 +468,7 @@ export default function AdminPage() {
                         </div>
                         <div style={{ color: SUB, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
                         <div style={{ color: SUB, fontSize: 10 }}>Last seen: {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString() : 'Never'}</div>
+                        {u.phone && <div style={{ color: '#4ade80', fontSize: 11, marginTop: 2 }}>📱 {u.phone}</div>}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
                         {isBanned && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#ef444422', color: '#ef4444' }}>BANNED</span>}
@@ -473,6 +484,12 @@ export default function AdminPage() {
                         ? <button onClick={() => revokePublisher(u.id)} style={pill('#f59e0b')}>🔒 Revoke Publisher</button>
                         : <button onClick={() => grantPublisher(u.id, u.email)} style={pill(ACCENT)}>🏢 Grant Publisher</button>
                       }
+                      {u.phone && (
+                        <a href={`https://wa.me/${u.phone.replace(/[^0-9]/g,'')}`} target="_blank" rel="noopener noreferrer"
+                          style={{ ...pill('#25d366'), textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+                          💬 WhatsApp
+                        </a>
+                      )}
                     </div>
                   </div>
                 );
