@@ -3,6 +3,23 @@ import { supabase, supabaseAdmin, isSupabaseReady } from '../lib/supabase';
 
 const AuthContext = createContext();
 
+// Fetch approximate location from IP
+async function fetchLocation() {
+  try {
+    const res = await fetch('https://ipapi.co/json/');
+    if (!res.ok) return null;
+    const d = await res.json();
+    return {
+      country: d.country_name || null,
+      city: d.city || null,
+      region: d.region || null,
+      ip: d.ip || null,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -103,8 +120,37 @@ export function AuthProvider({ children }) {
   const signIn = async (email, password) => {
     const result = await supabase.auth.signInWithPassword({ email, password });
     if (!result.error && result.data.user) {
+      // Update last seen
       await supabase.from('profiles').update({ last_seen: new Date().toISOString() })
         .eq('id', result.data.user.id);
+
+      // Log the login with location + device info for admin tracking
+      try {
+        const location = await fetchLocation();
+        const ua = navigator.userAgent || '';
+        const deviceType = /Mobile|Android|iPhone|iPad/.test(ua) ? 'Mobile' : 'Desktop';
+        const browser = /Chrome/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : /Edge/.test(ua) ? 'Edge' : 'Unknown';
+
+        // Fetch phone from profiles
+        const { data: profileData } = await supabase.from('profiles').select('phone, full_name').eq('id', result.data.user.id).single();
+
+        await supabase.from('login_logs').insert([{
+          user_id: result.data.user.id,
+          email: result.data.user.email,
+          full_name: profileData?.full_name || result.data.user.user_metadata?.full_name || null,
+          phone: profileData?.phone || null,
+          ip_address: location?.ip || null,
+          country: location?.country || null,
+          city: location?.city || null,
+          region: location?.region || null,
+          device_type: deviceType,
+          browser,
+          user_agent: ua.slice(0, 200),
+          logged_in_at: new Date().toISOString(),
+        }]);
+      } catch (logErr) {
+        console.warn('Login log failed:', logErr);
+      }
     }
     return result;
   };

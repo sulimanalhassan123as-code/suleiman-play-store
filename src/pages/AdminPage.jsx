@@ -56,6 +56,7 @@ export default function AdminPage() {
   const [posts, setPosts] = useState([]);
   const [pubRequests, setPubRequests] = useState([]);
   const [activeSessions, setActiveSessions] = useState([]);
+  const [loginLogs, setLoginLogs] = useState([]);
   const [stats, setStats] = useState({ totalUsers: 0, activeNow: 0, totalApps: 0, totalInstalls: 0, pendingRequests: 0 });
   const [loading, setLoading] = useState(false);
   const [announcement, setAnnouncement] = useState('');
@@ -75,18 +76,20 @@ export default function AdminPage() {
     if (!isSupabaseReady || !supabaseAdmin) return;
     setLoading(true);
     try {
-      const [appsRes, annoRes, postsRes, pubReqRes, sessionsRes] = await Promise.all([
+      const [appsRes, annoRes, postsRes, pubReqRes, sessionsRes, logsRes] = await Promise.all([
         supabaseAdmin.from('apps').select('*').order('created_at', { ascending: false }),
         supabaseAdmin.from('announcements').select('*').order('created_at', { ascending: false }),
         supabaseAdmin.from('community_posts').select('*').order('created_at', { ascending: false }).limit(50),
         supabaseAdmin.from('publisher_requests').select('*').order('created_at', { ascending: false }),
         supabaseAdmin.from('active_sessions').select('*').gte('last_ping', new Date(Date.now() - 90000).toISOString()),
+        supabaseAdmin.from('login_logs').select('*').order('logged_in_at', { ascending: false }).limit(100),
       ]);
       if (appsRes.data) setApps(appsRes.data);
       if (annoRes.data) setAnnouncements(annoRes.data);
       if (postsRes.data) setPosts(postsRes.data);
       if (pubReqRes.data) setPubRequests(pubReqRes.data);
       if (sessionsRes.data) setActiveSessions(sessionsRes.data);
+      if (logsRes.data) setLoginLogs(logsRes.data);
       let authUsers = [];
       try {
         const { data: usersData } = await supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 200 });
@@ -131,7 +134,7 @@ export default function AdminPage() {
       setApps(prev => [data[0], ...prev]);
       setShowAddApp(false);
       setNewApp({ name: '', icon: '📱', category: 'Tools', rating: 4.5, downloads: '0', description: '', full_description: '', url: '', version: '1.0.0', size: '—', developer: 'Never Hide Tech Empire', featured: false });
-      alert(`✅ "${newApp.name}" added!`);
+      alert(`✅ "${newApp.name}" added successfully!`);
     } else alert('Error: ' + error?.message);
   };
 
@@ -204,10 +207,14 @@ export default function AdminPage() {
     setPosts(prev => prev.filter(p => p.id !== id));
   };
 
-  // ---- LOGIN ----
+  // ---- LOGIN SCREEN ----
   if (!authenticated) {
     return (
-      <div style={{ minHeight: '100vh', background: BG, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{
+        position: 'fixed', inset: 0, background: BG,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        padding: 20, overflowY: 'auto',
+      }}>
         <div style={{ background: CARD, border: `2px solid ${ACCENT}55`, borderRadius: 24, padding: 32, width: '100%', maxWidth: 340, textAlign: 'center' }}>
           <div style={{ fontSize: 56, marginBottom: 8 }}>👑</div>
           <h2 style={{ color: TXT, fontSize: 22, margin: '0 0 4px' }}>Admin Portal</h2>
@@ -238,6 +245,7 @@ export default function AdminPage() {
     { id: 'apps', icon: '📱', label: 'Apps' },
     { id: 'users', icon: '👥', label: 'Users' },
     { id: 'publishers', icon: '🏢', label: 'Publishers' },
+    { id: 'logins', icon: '🔐', label: 'Logins' },
     { id: 'sessions', icon: '🟢', label: 'Live' },
     { id: 'announce', icon: '📢', label: 'Announce' },
     { id: 'posts', icon: '💬', label: 'Posts' },
@@ -245,12 +253,13 @@ export default function AdminPage() {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      position: 'fixed',
+      inset: 0,
       background: BG,
       color: TXT,
       display: 'flex',
       flexDirection: 'column',
-      overflowX: 'hidden',
+      overflow: 'hidden',
     }}>
       {/* ---- STICKY HEADER ---- */}
       <div style={{
@@ -259,10 +268,8 @@ export default function AdminPage() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        position: 'sticky',
-        top: 0,
-        zIndex: 200,
         flexShrink: 0,
+        zIndex: 200,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <span style={{ fontSize: 24 }}>👑</span>
@@ -305,6 +312,9 @@ export default function AdminPage() {
             {t.id === 'sessions' && stats.activeNow > 0 && (
               <span style={{ background: '#4ade80', borderRadius: '50%', width: 17, height: 17, fontSize: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#000' }}>{stats.activeNow}</span>
             )}
+            {t.id === 'logins' && loginLogs.length > 0 && (
+              <span style={{ background: '#7c3aed', borderRadius: '50%', width: 17, height: 17, fontSize: 10, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>{Math.min(loginLogs.length, 99)}</span>
+            )}
           </button>
         ))}
       </div>
@@ -334,7 +344,7 @@ export default function AdminPage() {
                 { icon: '📱', val: stats.totalApps, label: 'Published Apps' },
                 { icon: '⬇️', val: stats.totalInstalls, label: 'Total Installs' },
                 { icon: '🏢', val: stats.pendingRequests, label: 'Pending', red: stats.pendingRequests > 0 },
-                { icon: '📢', val: announcements.length, label: 'Announcements' },
+                { icon: '🔐', val: loginLogs.length, label: 'Login Records' },
               ].map(s => (
                 <div key={s.label} style={{ background: CARD, borderRadius: 16, padding: '16px 12px', border: `1px solid ${BORDER}`, textAlign: 'center' }}>
                   <div style={{ fontSize: 26, marginBottom: 6 }}>{s.icon}</div>
@@ -358,6 +368,23 @@ export default function AdminPage() {
                       <button onClick={() => reviewPubRequest(r, 'approved')} style={pill('#22c55e')}>✅</button>
                       <button onClick={() => reviewPubRequest(r, 'rejected')} style={pill('#ef4444')}>❌</button>
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Recent login activity */}
+            {loginLogs.length > 0 && (
+              <div style={{ background: CARD, borderRadius: 16, padding: 14, border: `1px solid ${BORDER}`, marginBottom: 14 }}>
+                <div style={{ fontWeight: 700, marginBottom: 12, fontSize: 14 }}>🔐 Recent Sign-Ins</div>
+                {loginLogs.slice(0, 5).map((log, i) => (
+                  <div key={log.id || i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: `1px solid ${BORDER}` }}>
+                    <span style={{ fontSize: 20, flexShrink: 0 }}>👤</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{log.email}</div>
+                      <div style={{ color: SUB, fontSize: 11 }}>{log.city || '?'}, {log.country || '?'} · {log.device_type || '?'}</div>
+                    </div>
+                    <div style={{ color: SUB, fontSize: 10, flexShrink: 0 }}>{new Date(log.logged_in_at).toLocaleDateString()}</div>
                   </div>
                 ))}
               </div>
@@ -397,51 +424,49 @@ export default function AdminPage() {
                 <div style={{ fontWeight: 700, color: ACCENT, marginBottom: 12, fontSize: 14 }}>➕ Add New App</div>
                 <input style={inp} placeholder="App name *" value={newApp.name} onChange={e => setNewApp(p => ({ ...p, name: e.target.value }))} />
                 <input style={inp} placeholder="App URL (https://...) *" value={newApp.url} onChange={e => setNewApp(p => ({ ...p, url: e.target.value }))} />
+                <input style={inp} placeholder="Icon emoji (e.g. 🎮)" value={newApp.icon} onChange={e => setNewApp(p => ({ ...p, icon: e.target.value }))} />
                 <input style={inp} placeholder="Short description" value={newApp.description} onChange={e => setNewApp(p => ({ ...p, description: e.target.value }))} />
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                  <input style={{ ...inp, marginBottom: 0 }} placeholder="Icon emoji" value={newApp.icon} onChange={e => setNewApp(p => ({ ...p, icon: e.target.value }))} />
-                  <select style={{ ...inp, marginBottom: 0 }} value={newApp.category} onChange={e => setNewApp(p => ({ ...p, category: e.target.value }))}>
-                    {['Islamic', 'AI', 'Games', 'Tools', 'Business', 'Education', 'Social', 'Entertainment'].map(c => <option key={c}>{c}</option>)}
-                  </select>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+                <textarea style={{ ...inp, minHeight: 70, resize: 'none' }} placeholder="Full description" value={newApp.full_description} onChange={e => setNewApp(p => ({ ...p, full_description: e.target.value }))} />
+                <select style={inp} value={newApp.category} onChange={e => setNewApp(p => ({ ...p, category: e.target.value }))}>
+                  {['Tools', 'Islamic', 'AI', 'Business', 'Games', 'Education', 'Health', 'Social'].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                  <input style={{ ...inp, marginBottom: 0 }} type="number" min="1" max="5" step="0.1" placeholder="Rating (1–5)" value={newApp.rating} onChange={e => setNewApp(p => ({ ...p, rating: e.target.value }))} />
                   <input style={{ ...inp, marginBottom: 0 }} placeholder="Downloads (e.g. 10K+)" value={newApp.downloads} onChange={e => setNewApp(p => ({ ...p, downloads: e.target.value }))} />
-                  <input style={{ ...inp, marginBottom: 0 }} type="number" placeholder="Rating (0-5)" value={newApp.rating} step="0.1" min="0" max="5" onChange={e => setNewApp(p => ({ ...p, rating: e.target.value }))} />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '12px 0' }}>
+                <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                  <input style={{ ...inp, marginBottom: 0 }} placeholder="Version (e.g. 2.1.0)" value={newApp.version} onChange={e => setNewApp(p => ({ ...p, version: e.target.value }))} />
+                  <input style={{ ...inp, marginBottom: 0 }} placeholder="Size (e.g. 15MB)" value={newApp.size} onChange={e => setNewApp(p => ({ ...p, size: e.target.value }))} />
+                </div>
+                <input style={inp} placeholder="Developer name" value={newApp.developer} onChange={e => setNewApp(p => ({ ...p, developer: e.target.value }))} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <input type="checkbox" id="feat" checked={newApp.featured} onChange={e => setNewApp(p => ({ ...p, featured: e.target.checked }))} style={{ width: 18, height: 18 }} />
-                  <label htmlFor="feat" style={{ color: TXT, fontSize: 13 }}>⭐ Featured app</label>
+                  <label htmlFor="feat" style={{ color: TXT, fontSize: 13, cursor: 'pointer' }}>⭐ Mark as Featured</label>
                 </div>
                 <button onClick={addApp} style={{ ...pill(ACCENT), width: '100%', padding: '12px 0', fontSize: 14, borderRadius: 12 }}>
-                  ➕ Publish to Store
+                  ✅ Publish App
                 </button>
               </div>
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {apps.map(a => (
-                <div key={a.id} style={{ background: CARD, borderRadius: 16, padding: 14, border: `1px solid ${BORDER}` }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                    <span style={{ fontSize: 28, flexShrink: 0 }}>{a.icon}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
-                      <div style={{ color: SUB, fontSize: 11 }}>{a.category} · v{a.version || '1.0.0'} · ⬇️ {a.install_count || 0} installs</div>
+                <div key={a.id} style={{ background: CARD, borderRadius: 14, padding: 14, border: `1px solid ${BORDER}`, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 28, flexShrink: 0 }}>{a.icon}</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.name}</div>
+                    <div style={{ color: SUB, fontSize: 11, marginTop: 2 }}>{a.category} · ⭐ {a.rating} · ⬇️ {a.install_count || 0}</div>
+                    <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+                      <button onClick={() => toggleFeatured(a.id, a.featured)} style={pill(a.featured ? '#f59e0b' : 'rgba(255,255,255,0.1)', a.featured ? '#000' : SUB)}>
+                        {a.featured ? '⭐ Featured' : '☆ Feature'}
+                      </button>
+                      <button onClick={() => toggleAppStatus(a.id, a.status)} style={pill(a.status === 'active' ? '#fbbf24' : '#22c55e')}>
+                        {a.status === 'active' ? '⏸ Suspend' : '▶️ Activate'}
+                      </button>
+                      <button onClick={() => deleteApp(a.id, a.name)} style={pill('#ef4444')}>🗑 Delete</button>
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                      {a.featured && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#f59e0b22', color: '#f59e0b' }}>⭐ Featured</span>}
-                      <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: a.status === 'active' ? '#22c55e22' : '#ef444422', color: a.status === 'active' ? '#4ade80' : '#ef4444' }}>
-                        {a.status || 'active'}
-                      </span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <button onClick={() => toggleFeatured(a.id, a.featured)} style={pill(a.featured ? '#f59e0b' : 'rgba(255,255,255,0.08)', a.featured ? '#fff' : SUB)}>
-                      {a.featured ? '⭐ Unfeature' : '☆ Feature'}
-                    </button>
-                    <button onClick={() => toggleAppStatus(a.id, a.status || 'active')} style={pill(a.status === 'active' ? '#f59e0b' : '#22c55e')}>
-                      {a.status === 'active' ? '⏸ Suspend' : '▶️ Activate'}
-                    </button>
-                    <button onClick={() => deleteApp(a.id, a.name)} style={pill('#ef4444')}>🗑 Remove</button>
                   </div>
                 </div>
               ))}
@@ -453,47 +478,49 @@ export default function AdminPage() {
         {activeTab === 'users' && (
           <div>
             <p style={{ color: SUB, fontSize: 13, marginBottom: 14 }}>{users.length} registered users</p>
-            {users.length === 0 && <div style={{ background: CARD, borderRadius: 16, padding: 32, textAlign: 'center', color: SUB }}><div style={{ fontSize: 48, marginBottom: 8 }}>👥</div><div>No registered users yet.</div></div>}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {users.map(u => {
-                const isBanned = u.banned;
-                const isPub = u.is_publisher;
-                return (
-                  <div key={u.id} style={{ background: CARD, borderRadius: 16, padding: 14, border: `1px solid ${isBanned ? '#ef444433' : BORDER}` }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                      <span style={{ fontSize: 28, flexShrink: 0 }}>👤</span>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {u.user_metadata?.full_name || 'User'}
-                        </div>
-                        <div style={{ color: SUB, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
-                        <div style={{ color: SUB, fontSize: 10 }}>Last seen: {u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString() : 'Never'}</div>
-                        {u.phone && <div style={{ color: '#4ade80', fontSize: 11, marginTop: 2 }}>📱 {u.phone}</div>}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
-                        {isBanned && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: '#ef444422', color: '#ef4444' }}>BANNED</span>}
-                        {isPub && <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: `${ACCENT}22`, color: ACCENT }}>PUBLISHER</span>}
-                      </div>
+              {users.map(u => (
+                <div key={u.id} style={{
+                  background: CARD, borderRadius: 14, padding: 14,
+                  border: `1px solid ${u.banned ? '#ef444433' : BORDER}`,
+                  opacity: u.banned ? 0.75 : 1,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: '50%', background: u.banned ? '#ef4444' : ACCENT, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
+                      {u.user_metadata?.full_name?.[0]?.toUpperCase() || u.email?.[0]?.toUpperCase() || '?'}
                     </div>
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                      {isBanned
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {u.user_metadata?.full_name || 'No Name'}
+                        {u.is_publisher && <span style={{ marginLeft: 6, fontSize: 10, background: '#7c3aed33', color: ACCENT, borderRadius: 8, padding: '2px 6px' }}>Publisher</span>}
+                        {u.banned && <span style={{ marginLeft: 6, fontSize: 10, background: '#ef444433', color: '#ef4444', borderRadius: 8, padding: '2px 6px' }}>Banned</span>}
+                      </div>
+                      <div style={{ color: SUB, fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.email}</div>
+                      {u.phone && (
+                        <div style={{ color: '#4ade80', fontSize: 11, marginTop: 2 }}>📱 {u.phone}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0 }}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {u.banned
                         ? <button onClick={() => unbanUser(u.id)} style={pill('#22c55e')}>✅ Unban</button>
                         : <button onClick={() => banUser(u.id, u.email)} style={pill('#ef4444')}>🚫 Ban</button>
                       }
-                      {isPub
+                      {u.is_publisher
                         ? <button onClick={() => revokePublisher(u.id)} style={pill('#f59e0b')}>🔒 Revoke Publisher</button>
                         : <button onClick={() => grantPublisher(u.id, u.email)} style={pill(ACCENT)}>🏢 Grant Publisher</button>
                       }
                       {u.phone && (
-                        <a href={`https://wa.me/${u.phone.replace(/[^0-9]/g,'')}`} target="_blank" rel="noopener noreferrer"
-                          style={{ ...pill('#25d366'), textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+                        <a href={`https://wa.me/${u.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                          style={{ ...pill('#25d366'), textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           💬 WhatsApp
                         </a>
                       )}
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -534,6 +561,73 @@ export default function AdminPage() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ======= LOGIN LOGS ======= */}
+        {activeTab === 'logins' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <p style={{ color: SUB, fontSize: 13 }}>{loginLogs.length} sign-in records</p>
+              <button onClick={async () => {
+                const { data } = await supabaseAdmin.from('login_logs').select('*').order('logged_in_at', { ascending: false }).limit(100);
+                if (data) setLoginLogs(data);
+              }} style={pill()}>🔄 Refresh</button>
+            </div>
+            {loginLogs.length === 0 ? (
+              <div style={{ background: CARD, borderRadius: 16, padding: 40, textAlign: 'center', color: SUB }}>
+                <div style={{ fontSize: 48, marginBottom: 10 }}>🔐</div>
+                <div>No sign-in records yet.</div>
+                <div style={{ fontSize: 12, marginTop: 8 }}>Records appear when users sign in to the store.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {loginLogs.map((log, i) => (
+                  <div key={log.id || i} style={{ background: CARD, borderRadius: 14, padding: 14, border: `1px solid ${BORDER}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          👤 {log.full_name || 'Unknown User'}
+                        </div>
+                        <div style={{ color: ACCENT, fontSize: 12, marginTop: 2, wordBreak: 'break-all' }}>{log.email}</div>
+                      </div>
+                      <div style={{ color: SUB, fontSize: 10, flexShrink: 0, textAlign: 'right' }}>
+                        {new Date(log.logged_in_at).toLocaleDateString()}<br />
+                        {new Date(log.logged_in_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                      {log.phone && (
+                        <a href={`https://wa.me/${log.phone.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer"
+                          style={{ ...pill('#25d366'), textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
+                          📱 {log.phone}
+                        </a>
+                      )}
+                      {log.country && (
+                        <span style={{ ...pill('rgba(255,255,255,0.08)', SUB), fontSize: 11 }}>
+                          📍 {log.city ? `${log.city}, ` : ''}{log.country}
+                        </span>
+                      )}
+                      {log.ip_address && (
+                        <span style={{ ...pill('rgba(255,255,255,0.05)', SUB), fontSize: 10 }}>
+                          🌐 {log.ip_address}
+                        </span>
+                      )}
+                      {log.device_type && (
+                        <span style={{ ...pill('rgba(255,255,255,0.08)', SUB), fontSize: 11 }}>
+                          {log.device_type === 'Mobile' ? '📱' : '🖥️'} {log.device_type}
+                        </span>
+                      )}
+                      {log.browser && (
+                        <span style={{ ...pill('rgba(255,255,255,0.05)', SUB), fontSize: 11 }}>
+                          🌍 {log.browser}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
