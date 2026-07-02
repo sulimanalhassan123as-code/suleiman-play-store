@@ -26,8 +26,10 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isPublisher, setIsPublisher] = useState(false);
+  const [welcomeBackName, setWelcomeBackName] = useState(null);
   const pingRef = useRef(null);
   const sessionTokenRef = useRef(null);
+  const hasHydratedRef = useRef(false);
 
   useEffect(() => {
     if (!isSupabaseReady) { setLoading(false); return; }
@@ -35,9 +37,17 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user);
+        fetchProfile(session.user).then((p) => {
+          // Only show "welcome back" on the initial page hydration, not on a
+          // fresh sign-in (that already gets the feedback popup) or refreshes.
+          if (!hasHydratedRef.current) {
+            const name = p?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0];
+            setWelcomeBackName(name || 'back');
+          }
+        });
         startPing(session.user.id);
       }
+      hasHydratedRef.current = true;
       setLoading(false);
     });
 
@@ -55,13 +65,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   const fetchProfile = async (u) => {
-    if (!u || !supabase) return;
+    if (!u || !supabase) return null;
     const { data } = await supabase.from('profiles').select('*').eq('id', u.id).single();
     if (data) {
       setProfile(data);
       setIsAdmin(data?.is_admin === true);
       setIsPublisher(data?.is_publisher === true);
     }
+    return data;
   };
 
   // Ping active sessions every 30s
@@ -161,10 +172,13 @@ export function AuthProvider({ children }) {
     setUser(null); setProfile(null); setIsAdmin(false); setIsPublisher(false);
   };
 
+  const dismissWelcomeBack = () => setWelcomeBackName(null);
+
   return (
     <AuthContext.Provider value={{
       user, profile, loading, isAdmin, isPublisher,
       signUp, signIn, signOut, isSupabaseReady,
+      welcomeBackName, dismissWelcomeBack,
       refreshProfile: () => user && fetchProfile(user)
     }}>
       {children}

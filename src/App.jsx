@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { AppProvider } from './context/AppContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 import Header from './components/Header';
 import BottomNav from './components/BottomNav';
 import SkyBackground from './components/SkyBackground';
+import WelcomeBackToast from './components/WelcomeBackToast';
 import StorePage from './pages/StorePage';
 import CommunityPage from './pages/CommunityPage';
 import ProfilePage from './pages/ProfilePage';
@@ -20,6 +21,7 @@ function Layout() {
   return (
     <div className="app-shell" style={{ color: theme.text }}>
       <SkyBackground />
+      <WelcomeBackToast />
       <div className="app-content">
         <Header />
         <main className="main-scroll">
@@ -38,17 +40,41 @@ function Layout() {
   );
 }
 
+// Waits for the auth session to hydrate before rendering the real UI, so
+// logged-in users never see a flash of "guest" state that makes it look
+// like they've been signed out.
+function AuthGate({ children }) {
+  const { loading } = useAuth();
+  const { theme } = useTheme();
+
+  if (loading) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center', gap: 12,
+        background: theme.headerBg || '#0b1224',
+      }}>
+        <div style={{ fontSize: 44 }}>🏪</div>
+        <div style={{ color: '#fff', fontSize: 13, opacity: 0.8 }}>Loading Suleiman Play Store...</div>
+      </div>
+    );
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <AppProvider>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/admin" element={<AdminPage />} />
-              <Route path="/*" element={<Layout />} />
-            </Routes>
-          </BrowserRouter>
+          <AuthGate>
+            <BrowserRouter>
+              <Routes>
+                <Route path="/admin" element={<AdminPage />} />
+                <Route path="/*" element={<Layout />} />
+              </Routes>
+            </BrowserRouter>
+          </AuthGate>
         </AppProvider>
       </AuthProvider>
     </ThemeProvider>
