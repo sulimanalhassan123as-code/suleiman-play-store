@@ -7,6 +7,7 @@ import Header from './components/Header';
 import BottomNav from './components/BottomNav';
 import SkyBackground from './components/SkyBackground';
 import WelcomeBackToast from './components/WelcomeBackToast';
+import PhoneCollectModal from './components/PhoneCollectModal';
 import StorePage from './pages/StorePage';
 import CommunityPage from './pages/CommunityPage';
 import ProfilePage from './pages/ProfilePage';
@@ -22,6 +23,7 @@ function Layout() {
     <div className="app-shell" style={{ color: theme.text }}>
       <SkyBackground />
       <WelcomeBackToast />
+      <PhoneCollectModal />
       <div className="app-content">
         <Header />
         <main className="main-scroll">

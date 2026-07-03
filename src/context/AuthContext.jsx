@@ -27,9 +27,11 @@ export function AuthProvider({ children }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isPublisher, setIsPublisher] = useState(false);
   const [welcomeBackName, setWelcomeBackName] = useState(null);
+  const [needsPhone, setNeedsPhone] = useState(false);
   const pingRef = useRef(null);
   const sessionTokenRef = useRef(null);
   const hasHydratedRef = useRef(false);
+  const loggedOauthRef = useRef(false);
 
   useEffect(() => {
     if (!isSupabaseReady) { setLoading(false); return; }
@@ -44,6 +46,7 @@ export function AuthProvider({ children }) {
             const name = p?.full_name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0];
             setWelcomeBackName(name || 'back');
           }
+          if (p && !p.phone) setNeedsPhone(true);
         });
         startPing(session.user.id);
       }
@@ -51,13 +54,60 @@ export function AuthProvider({ children }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchProfile(session.user);
+        fetchProfile(session.user).then(async (p) => {
+          // First-time Google sign-in: no profile row yet, create one
+          if (!p) {
+            const meta = session.user.user_metadata || {};
+            const { data: created } = await supabase.from('profiles').upsert({
+              id: session.user.id,
+              full_name: meta.full_name || meta.name || session.user.email?.split('@')[0],
+              email: session.user.email,
+              avatar_url: meta.avatar_url || meta.picture || null,
+              is_admin: false,
+              is_publisher: false,
+              publisher_limit: 5,
+              created_at: new Date().toISOString(),
+              last_seen: new Date().toISOString(),
+            }).select().single();
+            if (created) setProfile(created);
+            setNeedsPhone(true);
+          } else if (!p.phone) {
+            setNeedsPhone(true);
+          }
+
+          // Log Google OAuth logins once per session (password logins are logged in signIn())
+          if (event === 'SIGNED_IN' && session.user.app_metadata?.provider === 'google' && !loggedOauthRef.current) {
+            loggedOauthRef.current = true;
+            try {
+              const location = await fetchLocation();
+              const ua = navigator.userAgent || '';
+              const deviceType = /Mobile|Android|iPhone|iPad/.test(ua) ? 'Mobile' : 'Desktop';
+              const browser = /Chrome/.test(ua) ? 'Chrome' : /Firefox/.test(ua) ? 'Firefox' : /Safari/.test(ua) ? 'Safari' : /Edge/.test(ua) ? 'Edge' : 'Unknown';
+              await supabase.from('login_logs').insert([{
+                user_id: session.user.id,
+                email: session.user.email,
+                full_name: p?.full_name || session.user.user_metadata?.full_name || null,
+                phone: p?.phone || null,
+                ip_address: location?.ip || null,
+                country: location?.country || null,
+                city: location?.city || null,
+                region: location?.region || null,
+                device_type: deviceType,
+                browser,
+                user_agent: ua.slice(0, 200),
+                logged_in_at: new Date().toISOString(),
+                provider: 'google',
+              }]);
+            } catch (e) { console.warn('OAuth login log failed:', e); }
+          }
+        });
         startPing(session.user.id);
       } else {
-        setProfile(null); setIsAdmin(false); setIsPublisher(false);
+        setProfile(null); setIsAdmin(false); setIsPublisher(false); setNeedsPhone(false);
+        loggedOauthRef.current = false;
         stopPing();
       }
     });
@@ -158,6 +208,7 @@ export function AuthProvider({ children }) {
           browser,
           user_agent: ua.slice(0, 200),
           logged_in_at: new Date().toISOString(),
+          provider: 'password',
         }]);
       } catch (logErr) {
         console.warn('Login log failed:', logErr);
@@ -165,6 +216,27 @@ export function AuthProvider({ children }) {
     }
     return result;
   };
+
+  // Google OAuth sign-in — redirects to Google, then back to the app.
+  const signInWithGoogle = async () => {
+    if (!supabase) return { error: new Error('Supabase not configured') };
+    return supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/' },
+    });
+  };
+
+  const savePhone = async (phone) => {
+    if (!user || !phone.trim()) return { error: new Error('No phone provided') };
+    const { error } = await supabase.from('profiles').update({ phone: phone.trim() }).eq('id', user.id);
+    if (!error) {
+      setProfile(prev => ({ ...prev, phone: phone.trim() }));
+      setNeedsPhone(false);
+    }
+    return { error };
+  };
+
+  const dismissPhonePrompt = () => setNeedsPhone(false);
 
   const signOut = async () => {
     await stopPing();
@@ -177,8 +249,9 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{
       user, profile, loading, isAdmin, isPublisher,
-      signUp, signIn, signOut, isSupabaseReady,
+      signUp, signIn, signInWithGoogle, signOut, isSupabaseReady,
       welcomeBackName, dismissWelcomeBack,
+      needsPhone, savePhone, dismissPhonePrompt,
       refreshProfile: () => user && fetchProfile(user)
     }}>
       {children}

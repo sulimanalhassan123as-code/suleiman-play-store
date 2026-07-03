@@ -6,7 +6,7 @@ import { supabase, isSupabaseReady } from '../lib/supabase';
 
 export default function AuthPage() {
   const { theme } = useTheme();
-  const { signIn, signUp, isSupabaseReady: authReady } = useAuth();
+  const { signIn, signUp, signInWithGoogle, isSupabaseReady: authReady } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState('login');
   const [email, setEmail] = useState('');
@@ -20,6 +20,7 @@ export default function AuthPage() {
   const [rating, setRating] = useState(0);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackSent, setFeedbackSent] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const inp = {
     border: `1px solid ${theme.accent}44`,
@@ -32,6 +33,15 @@ export default function AuthPage() {
     fontFamily: 'inherit',
     width: '100%',
     boxSizing: 'border-box',
+  };
+
+  const handleGoogle = async () => {
+    setError('');
+    if (!authReady) { setError('Auth not configured yet. Coming soon!'); return; }
+    setGoogleLoading(true);
+    const { error: err } = await signInWithGoogle();
+    if (err) { setError(err.message); setGoogleLoading(false); }
+    // On success, browser redirects to Google — no further action needed here.
   };
 
   const handle = async () => {
@@ -146,6 +156,27 @@ export default function AuthPage() {
               {m === 'login' ? '🔐 Sign In' : '✍️ Register'}
             </button>
           ))}
+        </div>
+
+        <button onClick={handleGoogle} disabled={googleLoading} style={{
+          width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+          background: '#fff', color: '#1f1f1f', border: '1px solid #dadce0', borderRadius: 12,
+          padding: '12px', fontSize: 14, fontWeight: 600, cursor: googleLoading ? 'not-allowed' : 'pointer',
+          marginBottom: 16, opacity: googleLoading ? 0.7 : 1,
+        }}>
+          <svg width="18" height="18" viewBox="0 0 48 48">
+            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.5 29.3 35.5 24 35.5c-6.9 0-12.5-5.6-12.5-12.5S17.1 10.5 24 10.5c3.2 0 6 1.2 8.2 3.1l6-6C34.5 4.3 29.5 2 24 2 11.9 2 2 11.9 2 24s9.9 22 22 22 22-9.9 22-22c0-1.5-.2-2.7-.4-3.5z"/>
+            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.6 18.9 12.5 24 12.5c3.2 0 6 1.2 8.2 3.1l6-6C34.5 5.3 29.5 3 24 3c-7.5 0-14 4.2-17.7 10.4z"/>
+            <path fill="#4CAF50" d="M24 45c5.4 0 10.3-1.9 14-5.5l-6.5-5.5c-2 1.4-4.6 2.2-7.5 2.2-5.3 0-9.7-3.4-11.3-8.1l-6.7 5.1C10 40.5 16.5 45 24 45z"/>
+            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.3 4.3-4.3 5.7l6.5 5.5C41.5 36 44 30.5 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+          </svg>
+          {googleLoading ? 'Redirecting...' : 'Continue with Google'}
+        </button>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+          <div style={{ flex: 1, height: 1, background: `${theme.accent}33` }} />
+          <span style={{ color: theme.subtext, fontSize: 11 }}>OR</span>
+          <div style={{ flex: 1, height: 1, background: `${theme.accent}33` }} />
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
