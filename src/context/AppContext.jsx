@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, supabaseAdmin, isSupabaseReady } from '../lib/supabase';
+import { supabase, track, isSupabaseReady } from '../lib/supabase';
 import { APPS } from '../data/apps';
 
 const AppContext = createContext();
@@ -48,13 +48,8 @@ export function AppProvider({ children }) {
   const installApp = async (appId) => {
     if (!installedApps.some(id => String(id) === String(appId))) {
       setInstalledApps(prev => [...prev, appId]);
-      // Track install in DB
-      if (supabaseAdmin) {
-        await supabaseAdmin.from('app_installs').insert({ app_id: appId });
-        await supabaseAdmin.from('apps').update({
-          install_count: apps.find(a => String(a.id) === String(appId))?.install_count + 1 || 1
-        }).eq('id', appId);
-      }
+      // Track install via secure server-side endpoint
+      track('install_app', { app_id: appId });
     }
   };
 

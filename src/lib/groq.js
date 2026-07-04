@@ -1,30 +1,16 @@
-const GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
-
-export const isGroqReady = !!GROQ_KEY;
+// Client no longer holds the Groq key — every ask routes through /api/ai,
+// which injects the real key server-side only.
+export const isGroqReady = true;
 
 export async function askGroq(prompt, systemPrompt = '') {
-  if (!GROQ_KEY) {
-    return getOfflineResponse(prompt);
-  }
   try {
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    const res = await fetch('/api/ai', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${GROQ_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
-        messages: [
-          { role: 'system', content: systemPrompt || 'You are Clock AI, a helpful Islamic knowledge assistant for the Suleiman Play Store community. Answer questions about Islam, apps, and technology. Keep answers concise and respectful. Always say JazakAllah or relevant Islamic greeting.' },
-          { role: 'user', content: prompt }
-        ],
-        max_tokens: 300,
-        temperature: 0.7
-      })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prompt, systemPrompt }),
     });
     const data = await res.json();
-    return data.choices?.[0]?.message?.content || getOfflineResponse(prompt);
+    return data.content || getOfflineResponse(prompt);
   } catch (e) {
     return getOfflineResponse(prompt);
   }

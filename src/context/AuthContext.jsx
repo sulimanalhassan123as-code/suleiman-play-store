@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { supabase, supabaseAdmin, isSupabaseReady } from '../lib/supabase';
+import { supabase, track, isSupabaseReady } from '../lib/supabase';
 
 const AuthContext = createContext();
 
@@ -128,32 +128,21 @@ export function AuthProvider({ children }) {
   // Ping active sessions every 30s
   const startPing = async (userId) => {
     stopPing();
-    if (!supabaseAdmin) return;
     const token = crypto.randomUUID?.() || Math.random().toString(36).slice(2);
     sessionTokenRef.current = token;
 
-    const doPing = async (page = window.location.pathname) => {
-      await supabaseAdmin.from('active_sessions').upsert({
-        user_id: userId,
-        session_token: token,
-        page,
-        last_ping: new Date().toISOString()
-      }, { onConflict: 'session_token' });
+    const doPing = (page = window.location.pathname) => {
+      track('session_heartbeat', { user_id: userId, session_token: token, page });
     };
 
     doPing();
     pingRef.current = setInterval(() => doPing(window.location.pathname), 30000);
-
-    // Clean up stale sessions > 2 min old
-    await supabaseAdmin.from('active_sessions')
-      .delete()
-      .lt('last_ping', new Date(Date.now() - 120000).toISOString());
   };
 
   const stopPing = async () => {
     if (pingRef.current) { clearInterval(pingRef.current); pingRef.current = null; }
-    if (sessionTokenRef.current && supabaseAdmin) {
-      await supabaseAdmin.from('active_sessions').delete().eq('session_token', sessionTokenRef.current);
+    if (sessionTokenRef.current) {
+      track('session_end', { session_token: sessionTokenRef.current });
       sessionTokenRef.current = null;
     }
   };

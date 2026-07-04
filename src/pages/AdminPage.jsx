@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useNavigate } from 'react-router-dom';
-import { supabaseAdmin, isSupabaseReady } from '../lib/supabase';
+import { makeAdminClient, isSupabaseReady } from '../lib/supabase';
 
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || 'neverhide2024';
+let currentAdminClient = null;
 
 // ---- STYLE CONSTANTS ----
 const BG = '#0d0d1a';
@@ -44,6 +44,7 @@ const pill = (bg = ACCENT, color = '#fff') => ({
 });
 
 export default function AdminPage() {
+  const supabaseAdmin = currentAdminClient;
   const { theme } = useTheme();
   const navigate = useNavigate();
   const [authenticated, setAuthenticated] = useState(false);
@@ -67,10 +68,22 @@ export default function AdminPage() {
     size: '—', developer: 'Never Hide Tech Empire', featured: false
   });
 
-  const login = () => {
-    if (password === ADMIN_PASSWORD) { setAuthenticated(true); setError(''); loadAll(); }
-    else setError('Wrong password. Access denied.');
+  const login = async () => {
+    const client = makeAdminClient(password);
+    try {
+      const { error } = await client.from('apps').select('id').limit(1);
+      if (error) throw error;
+      currentAdminClient = client;
+      setAuthenticated(true);
+      setError('');
+    } catch {
+      setError('Wrong password. Access denied.');
+    }
   };
+
+  useEffect(() => {
+    if (authenticated) loadAll();
+  }, [authenticated]);
 
   const loadAll = async () => {
     if (!isSupabaseReady || !supabaseAdmin) return;
