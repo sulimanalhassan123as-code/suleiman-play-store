@@ -19,17 +19,42 @@ export const supabase = isSupabaseReady
     })
   : null
 
-// Admin client — routes every request through our server-side proxy at /api/proxy,
-// which injects the real Supabase service_role key ONLY on the server after checking
-// the admin password (sent as a header). The service_role key never reaches the browser.
+// Admin client — every request is intercepted and rerouted through our fixed
+// server-side endpoint /api/admin-proxy, which injects the real Supabase
+// service_role key ONLY on the server after checking the admin password
+// (sent as a header). The service_role key never reaches the browser.
 export function makeAdminClient(adminPassword) {
   if (typeof window === 'undefined') return null
+
+  const proxyFetch = async (url, options = {}) => {
+    const u = new URL(url, window.location.origin)
+    const path = u.pathname.replace(/^\/api\/proxy\/?/, '') + u.search
+    const h = options.headers || {}
+    const getHeader = (name) => (typeof h.get === 'function' ? h.get(name) : (h[name] || h[name.toLowerCase()]))
+
+    const resp = await fetch('/api/admin-proxy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-admin-password': adminPassword || '' },
+      body: JSON.stringify({
+        path,
+        method: options.method || 'GET',
+        body: options.body || null,
+        headers: {
+          prefer: getHeader('Prefer'),
+          range: getHeader('Range'),
+        },
+      }),
+    })
+    const text = await resp.text()
+    return new Response(text, { status: resp.status, headers: resp.headers })
+  }
+
   return createClient(
     `${window.location.origin}/api/proxy`,
-    'proxied', // dummy key — the proxy ignores this and injects the real service key
+    'proxied', // dummy key — never actually sent anywhere meaningful, proxyFetch intercepts everything
     {
       auth: { autoRefreshToken: false, persistSession: false, storageKey: 'suleiman-store-admin-proxy' },
-      global: { headers: { 'x-admin-password': adminPassword || '' } },
+      global: { fetch: proxyFetch },
     }
   )
 }
