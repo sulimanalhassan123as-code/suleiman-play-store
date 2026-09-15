@@ -16,12 +16,12 @@ export default async function handler(req, res) {
       method: 'POST',
       headers: { Authorization: `Bearer ${GROQ_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'llama-3.1-8b-instant',
+        model: 'openai/gpt-oss-20b',
         messages: [
           { role: 'system', content: systemPrompt || 'You are Clock AI, a helpful Islamic knowledge assistant for the Suleiman Play Store community. Answer questions about Islam, apps, and technology. Keep answers concise and respectful. Always say JazakAllah or relevant Islamic greeting.' },
           { role: 'user', content: String(prompt).slice(0, 4000) },
         ],
-        max_tokens: 300,
+        max_tokens: 600,
         temperature: 0.7,
       }),
     });
